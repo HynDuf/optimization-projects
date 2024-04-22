@@ -23,6 +23,7 @@ using vi = vector<int>;
 const int NUM_TILES = 16;
 const int BASE = 317;
 int n, T;
+bool doCost = false;
 
 unsigned long long randomInt()
 {
@@ -78,6 +79,28 @@ bool dfs(int i, int j, int pi, int pj, int &numVertices, const vector<vector<int
     }
     return true;
 }
+const int COST_DISCONNECT = 120;
+int getCost(const vector<vector<int>> &adj) {
+    int cost = 0;
+    for (int i = 0; i < n; ++i) {
+        for (int j = 0; j < n; ++j) {
+            // cost += manhattanDist[adj[i][j]][i][j];
+            for (int t = 0; t < 4; ++t) {
+                if (~adj[i][j] >> t & 1) {
+                    continue;
+                }
+                int x = i + dx[t], y = j + dy[t];
+                if (x < 0 || y < 0 || x == n || y == n) {
+                    continue;
+                }
+                if (~adj[x][y] >> corr[t] & 1) {
+                    cost += COST_DISCONNECT;
+                }
+            }
+        }
+    }
+    return cost;
+}
 int getAnswer(const vector<vector<int>> &adj) {
     vector<vector<bool>> vis(n, vector<bool> (n, false));
     int mxVertices = 0;
@@ -103,7 +126,12 @@ int getHeuristics(int pathLength, const vector<vector<int>> &adj) {
             }
         }
     }
-    return -pathLength + 19 * mxVertices;
+    int cost = 0;
+    if (doCost) {
+        cost = getCost(adj);
+    }
+
+    return -pathLength + 20 * mxVertices - cost;
 }
 vector<vector<vector<unsigned long long>>> zobrist;
 vector<pair<int, int>> trace;
@@ -111,6 +139,7 @@ vector<pair<int, int>> trace;
 struct Node {
     unsigned long long zobristHash;
     vector<vector<int>> adj;
+    int heuristicValue;
     int emptyx, emptyy;
     int posInTrace;
     int pathLength;
@@ -124,7 +153,8 @@ struct Node {
         }
     }
     bool operator<(const Node &x) const {
-        return getHeuristicsNode() > x.getHeuristicsNode();
+        return heuristicValue > x.heuristicValue;
+        // return getHeuristicsNode() > x.getHeuristicsNode();
     }
 
     int getAnswerNode() {
@@ -164,6 +194,7 @@ struct Node {
             Node newNeighbor = Node(newAdj, x, y, true, newZobristHash);
             newNeighbor.pathLength = pathLength + 1;
             trace[newNeighbor.posInTrace] = {posInTrace, t};
+            newNeighbor.heuristicValue = newNeighbor.getHeuristicsNode();
             neighbors.push_back(newNeighbor);
         }
         return neighbors;
@@ -181,11 +212,6 @@ void initZobrist(int n) {
     }
 }
 
-struct CompareNode {
-    bool operator()(Node &x, Node &y) {
-        return x.getHeuristicsNode() < y.getHeuristicsNode();
-    }
-};
 map<ll, bool> visited;
 int main() {
     cin.tie(0)->sync_with_stdio(0);
@@ -193,7 +219,7 @@ int main() {
     cin >> n >> T;
     auto start = chrono::steady_clock::now();
     initZobrist(n);
-    int MAX_NODE = n * 100;
+    int MAX_NODE = n * 110;
     vector<string> s(n);
     int ex = 0, ey = 0;
     for (int i = 0; i < n; ++i) {
@@ -207,6 +233,7 @@ int main() {
     }
     auto adj = convertStrToGraph(s);
     Node root = Node(adj, ex, ey, false);
+    root.heuristicValue = root.getHeuristicsNode();
     // priority_queue<Node, vector<Node>, CompareNode> pq;
     set<Node> pq; 
     pq.insert(root);
@@ -216,8 +243,11 @@ int main() {
     while (mxAns < n * n - 1 && !pq.empty()) {
         auto ed = chrono::steady_clock::now();
         auto diff = ed - start;
-        if (chrono::duration<double, milli> (diff).count() > 2960) {
+        if (chrono::duration<double, milli> (diff).count() > 2860) {
             break;
+        }
+        if (!doCost && chrono::duration<double, milli> (diff).count() > 1200) {
+            doCost = true;
         }
         Node cur = *pq.begin();
         int ans = cur.getAnswerNode();

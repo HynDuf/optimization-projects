@@ -107,7 +107,7 @@ void buildManhattanDist(const vector<vector<int>> &adj) {
         }
     }
 }
-const int COST_DISCONNECT = 4000;
+const int COST_DISCONNECT = 2000;
 int getCost(const vector<vector<int>> &adj) {
     int cost = 0;
     for (int i = 0; i < n; ++i) {
@@ -181,7 +181,6 @@ pair<ii, ii> getGoodPairOfCells() {
 }
 const int SA_ITERATION = 300000;
 pair<vector<vector<int>>, int> simulatedAnnealing(vector<vector<int>> adj) {
-    buildManhattanDist(adj);
     // bestAdj with bestScore
     vector<vector<int>> bestAdj;
     int bestScore = getScore(T, adj);
@@ -253,11 +252,17 @@ int32_t main() {
     }
 
     globalAdj = convertStrToGraph(s);
+    buildManhattanDist(globalAdj);
     auto bestAdj = globalAdj;
     int bestScore = 0;
-    while (bestScore < 470000) {
+    int maxIter = 200;
+    int iter = 0;
+    while (iter < maxIter) {
+        if (iter % 10 == 0) {
+            cerr << "iter = " << iter << '\n';
+        }
+        iter++;
         auto [resultAdj, score] = simulatedAnnealing(bestAdj);
-        cerr << "score = " << score << endl;
         if (score > bestScore) {
             bestAdj = resultAdj;
             bestScore = score;
